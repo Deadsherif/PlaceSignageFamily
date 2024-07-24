@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+	<AddIn Type="Application">
+		<Name>PlaceSignageFamily</Name>
+		<Assembly>PlaceSignageFamily/PlaceSignageFamily.dll</Assembly> // the path at revit directory
+		<FullClassName>PlaceSignageFamily.App</FullClassName>
+		<ClientId>
+		FD85A535-107C-4382-B56E-92E62C275130
+		</ClientId>
+		<VendorId>DummyVendorId</VendorId>
+		<VendorDescription>DummyDescription</VendorDescription>
+	</AddIn>
+
+</RevitAddIns>
