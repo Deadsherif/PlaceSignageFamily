@@ -37,7 +37,7 @@ namespace PlaceSignageFamily.External_Event_Handlers
                                 .Cast<Level>()
                                 .OrderBy(level => level.Elevation)
                                 .ToList();
-             
+
 
 
 
@@ -59,53 +59,64 @@ namespace PlaceSignageFamily.External_Event_Handlers
                         {
                             var comp = door.GetSubComponentIds().Count;
                             if (comp == 0) continue;
-                 
+
                             var doorLocation = (door.Location as LocationPoint).Point;
                             var FromRoom = door.FromRoom;
                             var ToRoom = door.ToRoom;
                             var level = doc.GetElement(door.LevelId) as Level;
-                            var doorHost = door.Host as Wall ;
+                            var doorHost = door.Host as Wall;
                             var index = (levels.FindIndex(X => X.Id == door.LevelId) + 1) * 100;
-                            
+
                             if (doorHost == null) continue;
-                            var room = FromRoom==null?ToRoom:FromRoom;
-                            var targetFace =  GetWallFaceNormalPointingToRoom(door,doorHost, room, FromRoom==null) ;
-                            if(targetFace == null) continue;
+                            var room = FromRoom == null ? ToRoom : FromRoom;
+                            var targetFace = GetWallFaceNormalPointingToRoom(door, doorHost, room, FromRoom == null);
+                            if (targetFace == null) continue;
 
-                           (XYZ point,XYZ direction) =   DrawWallOpeningTopLeftPoint(doorHost, door, (targetFace as PlanarFace),MainviewModel.IsToggleLeft);
+                            (XYZ point, XYZ direction) = DrawWallOpeningTopLeftPoint(doorHost, door, (targetFace as PlanarFace), MainviewModel.IsToggleLeft);
 
-                            //XYZ referenceVector = GetPerpendicularVector((targetFace as PlanarFace).FaceNormal);
-                            //var doorHeight = door.get_Parameter(BuiltInParameter.INSTANCE_HEAD_HEIGHT_PARAM).AsDouble();
-                            //var doorWidth = doc.GetElement(door.GetTypeId()).get_Parameter(BuiltInParameter.DOOR_WIDTH)?.AsDouble();
                             direction = direction ?? new XYZ(0, 0, 0);
-                            var offset = MainviewModel.IsToggleLeft? ((MainviewModel.Offset-12) / 12) * direction: ((MainviewModel.Offset)/12)* direction;
-                            
+                            var offset = MainviewModel.IsToggleLeft ? ((MainviewModel.Offset - 12) / 12) * direction : ((MainviewModel.Offset) / 12) * direction;
+
                             point = point ?? doorLocation;
-                            FamilyInstance familyInstance = doc.Create.NewFamilyInstance(new XYZ(point.X - offset.X, point.Y- offset.Y, point.Z+ (MainviewModel.Height/12)), symbol, doorHost,level,StructuralType.NonStructural);
-                           var Existing =  familyInstance.LookupParameter("Existing in");
-                            if (Existing != null)
-                                Existing.Set(FromRoom?.Name??"N/A");
-                           var Leading =  familyInstance.LookupParameter("Leading into");
-                            if (Leading != null)
-                                Leading.Set(ToRoom?.Name??"N/A");
+                            FamilyInstance familyInstance = doc.Create.NewFamilyInstance(new XYZ(point.X - offset.X, point.Y - offset.Y, point.Z/*+ (MainviewModel.Height/12)*/), symbol, doorHost, level, StructuralType.NonStructural);
 
-                            
+                            var familyType = doc.GetElement(familyInstance.GetTypeId());
 
-                            var idPara = familyInstance.LookupParameter("Signage Type Identifier");
-                            if (idPara != null)
-                                idPara.Set($"{index+i}");
-                            i++;
 
+                            if (MainviewModel.IsToggleBack)
+
+                            { familyType.LookupParameter("ShowBack").Set(1); familyType.LookupParameter("ShowFront").Set(0); }
+                            else
+                            { familyType.LookupParameter("ShowBack").Set(0); familyType.LookupParameter("ShowFront").Set(1); }
+
+
+
+
+
+                                var Existing = familyInstance.LookupParameter("Existing in");
+                                if (Existing != null)
+                                    Existing.Set(FromRoom?.Name ?? "N/A");
+                                var Leading = familyInstance.LookupParameter("Leading into");
+                                if (Leading != null)
+                                    Leading.Set(ToRoom?.Name ?? "N/A");
+
+
+
+                                var idPara = familyInstance.LookupParameter("Signage Type Identifier");
+                                if (idPara != null)
+                                    idPara.Set($"{index + i}");
+                                i++;
+
+                            }
+                            tr1.Commit();
                         }
-                        tr1.Commit();
-                    }
-                    
-                    // Step 5: Commit the transaction group
-                    tg.Assimilate();
-                }
 
-                MessageBox.Show("Signale Families Placed Successfully");
-            }
+                        // Step 5: Commit the transaction group
+                        tg.Assimilate();
+                    }
+
+                    MessageBox.Show("Signale Families Placed Successfully");
+                }
             catch (Exception ex)
             {
                 MessageBox.Show("Error: " + ex.Message);

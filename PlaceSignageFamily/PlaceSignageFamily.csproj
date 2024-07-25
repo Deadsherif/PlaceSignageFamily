@@ -65,6 +65,7 @@
     <Compile Include="BoolToVisibilityConverter .cs" />
     <Compile Include="Command.cs" />
     <Compile Include="Command\RelayCommand.cs" />
+    <Compile Include="External Event Handlers\SetElevationExternalEventHandler.cs" />
     <Compile Include="External Event Handlers\RunPlaceSignageFamilyExternalEventHandler.cs" />
     <Compile Include="Helper.cs" />
     <Compile Include="MVVM\Model\ViewData.cs" />

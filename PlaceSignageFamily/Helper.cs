@@ -121,13 +121,8 @@ namespace PlaceSignageFamily
                         var WallId = GetHittedWall(realPointOfRoomToNotGetTheDoor, IsFromRoomNull ? faceNormal: faceNormal.Negate());
                         if (WallId != null && wall.Id == WallId)
                         {
-                            //foreach (PlanarFace item in solid.Faces)
-                            //{
-                            //    //if (item.FaceNormal == face.FaceNormal.Negate() )
-                                targetFace = face;
-                                break;
-                            //}
-                      
+                            targetFace = face;
+                            break;
                         }
                     }
                 }

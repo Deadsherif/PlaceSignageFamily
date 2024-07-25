@@ -37,6 +37,7 @@ namespace PlaceSignageFamily.MVVM.ViewModel
         private double height;
         private double offset;
         private bool _isToggleLeft;
+        private bool _isToggleBack;
         public bool IsToggleLeft
         {
             get { return _isToggleLeft; }
@@ -46,6 +47,18 @@ namespace PlaceSignageFamily.MVVM.ViewModel
                 {
                     _isToggleLeft = value;
                     OnPropertyChanged(nameof(IsToggleLeft));
+                }
+            }
+        }
+        public bool IsToggleBack
+        {
+            get { return _isToggleBack; }
+            set
+            {
+                if (_isToggleBack != value)
+                {
+                    _isToggleBack = value;
+                    OnPropertyChanged(nameof(IsToggleBack));
                 }
             }
         }
@@ -99,12 +112,16 @@ namespace PlaceSignageFamily.MVVM.ViewModel
         #endregion
         #region Functions
         public ICommand PlaceSignageFamilyCommand { get; }
+        public ICommand SetFamilyElevationCommand { get; }
         public ICommand NavigateCommand { get; }
         public ICommand SelectAllCommand { get; set; }
         public ICommand DeselectAllCommand { get; set; }
+        public ExternalEvent EvElevation { get; internal set; }
+
         public MainWindowViewModel()
         {
             PlaceSignageFamilyCommand = new RelayCommand(P => RunExporter(P));
+            SetFamilyElevationCommand = new RelayCommand(P => SetElevation(P));
 
         }
 
@@ -114,6 +131,13 @@ namespace PlaceSignageFamily.MVVM.ViewModel
             Ev.Raise();
 
         }
+        public void SetElevation(object parameter)
+        {
+
+            EvElevation.Raise();
+
+        }
+
 
 
 
