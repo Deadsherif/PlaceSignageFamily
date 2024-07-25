@@ -108,6 +108,7 @@ namespace PlaceSignageFamily
                 Solid solid = geomObj as Solid;
                 if (solid != null && Math.Round(solid.Volume) > 0)
                 {
+                    var FACES = new List<PlanarFace>();
                     // Iterate through each face in the solid
                     foreach (PlanarFace face in solid.Faces)
                     {
@@ -117,11 +118,16 @@ namespace PlaceSignageFamily
                         // Calculate the normal at that point
                         XYZ faceNormal = face.FaceNormal;
 
-                        var WallId = GetHittedWall(realPointOfRoomToNotGetTheDoor, IsFromRoomNull ? faceNormal : faceNormal.Negate());
+                        var WallId = GetHittedWall(realPointOfRoomToNotGetTheDoor, IsFromRoomNull ? faceNormal: faceNormal.Negate());
                         if (WallId != null && wall.Id == WallId)
                         {
-                            targetFace = face;
-                            break;
+                            //foreach (PlanarFace item in solid.Faces)
+                            //{
+                            //    //if (item.FaceNormal == face.FaceNormal.Negate() )
+                                targetFace = face;
+                                break;
+                            //}
+                      
                         }
                     }
                 }
@@ -129,6 +135,7 @@ namespace PlaceSignageFamily
 
             return targetFace;
         }
+        
         public static ElementId GetHittedWall(XYZ point, XYZ faceNormal)
         {
             ElementFilter filter = new ElementCategoryFilter(BuiltInCategory.OST_Walls);
@@ -233,7 +240,7 @@ namespace PlaceSignageFamily
 
 
 
-        public static (XYZ point,XYZ Direction) DrawWallOpeningTopLeftPoint(Wall wall, FamilyInstance door, XYZ Normal,bool IsToggleLeft)
+        public static (XYZ point,XYZ Direction) DrawWallOpeningTopLeftPoint(Wall wall, FamilyInstance door, PlanarFace planarFace,bool IsToggleLeft)
         {
 
             Categories cats = doc.Settings.Categories;
@@ -286,20 +293,33 @@ namespace PlaceSignageFamily
 
                 foreach (PlanarFace face in faceList)
                 {
-                    Plane facePlane = Plane.CreateByNormalAndOrigin(face.ComputeNormal(UV.Zero), face.Origin);
+                    Plane facePlane = Plane.CreateByNormalAndOrigin(face.FaceNormal, face.Origin);
 
                     if (face.FaceNormal.IsAlmostEqualTo(new XYZ(0, 0, 1))|| face.FaceNormal.IsAlmostEqualTo( new XYZ(0, 0, -1)))
                             {
                         SketchPlane sketchPlane
                          = SketchPlane.Create(doc, facePlane);
-
+                        var X = face.GetEdgesAsCurveLoops();
                         foreach (CurveLoop curveLoop in
                           face.GetEdgesAsCurveLoops())
                         {
                             foreach (Curve curve in curveLoop)
                             {
-                                if ((curve as Line).Direction.DotProduct(Normal)<=.01)
-                                    return IsToggleLeft?(curve.Tessellate().FirstOrDefault(), (curve as Line).Direction): (curve.Tessellate().LastOrDefault(), (curve as Line).Direction);
+
+                                if (curve is Line line && Math.Round(line.Direction.DotProduct(planarFace.FaceNormal)) == 0)
+                                {
+                                    // Check if both endpoints of the line are on the sketch plane
+                                    XYZ start = line.GetEndPoint(0);
+                                    XYZ end = line.GetEndPoint(1);
+
+                                    bool isStartOnPlane = Math.Abs((start - planarFace.Origin).DotProduct(planarFace.FaceNormal)) < 1e-6;
+                                    bool isEndOnPlane = Math.Abs((end - planarFace.Origin).DotProduct(planarFace.FaceNormal)) < 1e-6;
+
+                                    if (isStartOnPlane && isEndOnPlane)
+                                    {
+                                        return IsToggleLeft  ? (line.Tessellate().LastOrDefault(), line.Direction) : (line.Tessellate().FirstOrDefault(), line.Direction);
+                                    }
+                                }
                             }
                         }
                     }

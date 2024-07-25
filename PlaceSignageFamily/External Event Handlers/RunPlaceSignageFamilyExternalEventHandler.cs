@@ -52,6 +52,7 @@ namespace PlaceSignageFamily.External_Event_Handlers
                         tr1.Start();
 
                         var symbol = GetFamilySymbole(doc);
+                        symbol.Activate();
                         var doors = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Doors).WhereElementIsNotElementType().ToElements().Cast<FamilyInstance>();
                         int i = 1;
                         foreach (var door in doors)
@@ -62,30 +63,33 @@ namespace PlaceSignageFamily.External_Event_Handlers
                             var doorLocation = (door.Location as LocationPoint).Point;
                             var FromRoom = door.FromRoom;
                             var ToRoom = door.ToRoom;
+                            var level = doc.GetElement(door.LevelId) as Level;
                             var doorHost = door.Host as Wall ;
+                            var index = (levels.FindIndex(X => X.Id == door.LevelId) + 1) * 100;
+                            
                             if (doorHost == null) continue;
                             var room = FromRoom==null?ToRoom:FromRoom;
                             var targetFace =  GetWallFaceNormalPointingToRoom(door,doorHost, room, FromRoom==null) ;
                             if(targetFace == null) continue;
 
-                           (XYZ point,XYZ direction) =   DrawWallOpeningTopLeftPoint(doorHost, door, (targetFace as PlanarFace).FaceNormal,MainviewModel.IsToggleLeft);
+                           (XYZ point,XYZ direction) =   DrawWallOpeningTopLeftPoint(doorHost, door, (targetFace as PlanarFace),MainviewModel.IsToggleLeft);
 
-                            XYZ referenceVector = GetPerpendicularVector((targetFace as PlanarFace).FaceNormal);
-                            var doorHeight = door.get_Parameter(BuiltInParameter.INSTANCE_HEAD_HEIGHT_PARAM).AsDouble();
-                            var doorWidth = doc.GetElement(door.GetTypeId()).get_Parameter(BuiltInParameter.DOOR_WIDTH)?.AsDouble();
-                            direction = direction ?? new XYZ(1, 1, 0);
+                            //XYZ referenceVector = GetPerpendicularVector((targetFace as PlanarFace).FaceNormal);
+                            //var doorHeight = door.get_Parameter(BuiltInParameter.INSTANCE_HEAD_HEIGHT_PARAM).AsDouble();
+                            //var doorWidth = doc.GetElement(door.GetTypeId()).get_Parameter(BuiltInParameter.DOOR_WIDTH)?.AsDouble();
+                            direction = direction ?? new XYZ(0, 0, 0);
                             var offset = MainviewModel.IsToggleLeft? ((MainviewModel.Offset-12) / 12) * direction: ((MainviewModel.Offset)/12)* direction;
                             
                             point = point ?? doorLocation;
-                            FamilyInstance familyInstance = doc.Create.NewFamilyInstance(new XYZ(point.X + offset.X, point.Y+ offset.Y, point.Z+ (MainviewModel.Height/12)), symbol, doorHost,StructuralType.NonStructural);
+                            FamilyInstance familyInstance = doc.Create.NewFamilyInstance(new XYZ(point.X - offset.X, point.Y- offset.Y, point.Z+ (MainviewModel.Height/12)), symbol, doorHost,level,StructuralType.NonStructural);
                            var Existing =  familyInstance.LookupParameter("Existing in");
                             if (Existing != null)
                                 Existing.Set(FromRoom?.Name??"N/A");
-                           var Leading =  familyInstance.LookupParameter("Leading into");
+                           var Leading =  familyInstance.LookupParameter("Leading into");
                             if (Leading != null)
                                 Leading.Set(ToRoom?.Name??"N/A");
 
-                            var index = (levels.FindIndex(X => X.Id == door.LevelId)+1)*100;
+                            
 
                             var idPara = familyInstance.LookupParameter("Signage Type Identifier");
                             if (idPara != null)

@@ -32,16 +32,16 @@ namespace PlaceSignageFamily
             string thisassemblypath = Assembly.GetExecutingAssembly().Location;
             //Images
             #region Images
-            //var img = Properties.AppResources.fender_bender;
-            //ImageSource imgsc = GetImageSource(img);
+            var img = Properties.AppResources.Signage;
+            ImageSource imgsc = GetImageSource(img);
 
             #endregion
             //Buttons
             #region Buttons
             PushButton button = panel.AddItem(new PushButtonData("Place Signage", "Place Signage", thisassemblypath, "PlaceSignageFamily.Command")) as PushButton;
 
-            //button.Image = imgsc;
-            //button.LargeImage = imgsc;
+            button.Image = imgsc;
+            button.LargeImage = imgsc;
             button.Enabled = true;
             #endregion
 
