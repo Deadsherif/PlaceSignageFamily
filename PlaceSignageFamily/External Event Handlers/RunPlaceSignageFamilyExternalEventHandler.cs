@@ -53,7 +53,11 @@ namespace PlaceSignageFamily.External_Event_Handlers
 
                         var symbol = GetFamilySymbole(doc);
                         symbol.Activate();
-                        var doors = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Doors).WhereElementIsNotElementType().ToElements().Cast<FamilyInstance>();
+                        var Projectdoors = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Doors).WhereElementIsNotElementType().ToElements().Cast<FamilyInstance>();
+                        var LinkedDoors = GetAllDoorssFromLinkedModels(doc);
+                        var doors = new List<FamilyInstance>();
+                        doors.AddRange(Projectdoors);
+                        doors.AddRange(LinkedDoors);
                         int i = 1;
                         foreach (var door in doors)
                         {
@@ -75,13 +79,25 @@ namespace PlaceSignageFamily.External_Event_Handlers
                             (XYZ point, XYZ direction) = DrawWallOpeningTopLeftPoint(doorHost, door, (targetFace as PlanarFace), MainviewModel.IsToggleLeft);
 
                             direction = direction ?? new XYZ(0, 0, 0);
-                            var offset = MainviewModel.IsToggleLeft ? ((MainviewModel.Offset - 12) / 12) * direction : ((MainviewModel.Offset) / 12) * direction;
+                            var offset = MainviewModel.IsToggleLeft ? ((MainviewModel.Offset) / 12) * direction : ((MainviewModel.Offset - 12) / 12) * direction;
 
                             point = point ?? doorLocation;
-                            FamilyInstance familyInstance = doc.Create.NewFamilyInstance(new XYZ(point.X - offset.X, point.Y - offset.Y, point.Z/*+ (MainviewModel.Height/12)*/), symbol, doorHost, level, StructuralType.NonStructural);
+                            FamilyInstance familyInstance = null;
+                            if (!door.Document.IsLinked)
+                                familyInstance = doc.Create.NewFamilyInstance(targetFace, new XYZ(point.X + offset.X, point.Y + offset.Y, point.Z/*+ (MainviewModel.Height/12)*/), direction.Negate(), symbol);
+                            else
+
+                            {
+                                // Get all the linked documents in the current Revit model
+                                var linkInstance = new FilteredElementCollector(doc)
+                                    .OfClass(typeof(RevitLinkInstance)).Cast<RevitLinkInstance>().FirstOrDefault(In=>In.GetLinkDocument().Title== door.Document.Title);
+
+                                familyInstance = doc.Create.NewFamilyInstance(targetFace.Reference.CreateLinkReference(linkInstance), new XYZ(point.X + offset.X, point.Y + offset.Y, point.Z/*+ (MainviewModel.Height/12)*/), direction.Negate(), symbol); }
 
                             var familyType = doc.GetElement(familyInstance.GetTypeId());
-
+                            var levelPar = familyInstance.get_Parameter(BuiltInParameter.INSTANCE_SCHEDULE_ONLY_LEVEL_PARAM);
+                            if (levelPar != null)
+                                levelPar.Set(level.Id);
 
                             if (MainviewModel.IsToggleBack)
 
@@ -90,37 +106,68 @@ namespace PlaceSignageFamily.External_Event_Handlers
                             { familyType.LookupParameter("ShowBack").Set(0); familyType.LookupParameter("ShowFront").Set(1); }
 
 
+                            var widthPara = familyInstance.LookupParameter("L");
+                            if (widthPara != null)
+                                widthPara.Set(doorHost.Width);
+
+                            var Existing = familyInstance.LookupParameter("Existing in");
+                            if (Existing != null)
+                                Existing.Set(FromRoom?.Name ?? "N/A");
+                            var Leading = familyInstance.LookupParameter("Leading into");
+                            if (Leading != null)
+                                Leading.Set(ToRoom?.Name ?? "N/A");
 
 
 
-                                var Existing = familyInstance.LookupParameter("Existing in");
-                                if (Existing != null)
-                                    Existing.Set(FromRoom?.Name ?? "N/A");
-                                var Leading = familyInstance.LookupParameter("Leading into");
-                                if (Leading != null)
-                                    Leading.Set(ToRoom?.Name ?? "N/A");
+                            var idPara = familyInstance.LookupParameter("Signage Type Identifier");
+                            if (idPara != null)
+                                idPara.Set($"{index + i}");
+                            i++;
 
-
-
-                                var idPara = familyInstance.LookupParameter("Signage Type Identifier");
-                                if (idPara != null)
-                                    idPara.Set($"{index + i}");
-                                i++;
-
-                            }
-                            tr1.Commit();
                         }
-
-                        // Step 5: Commit the transaction group
-                        tg.Assimilate();
+                        tr1.Commit();
                     }
 
-                    MessageBox.Show("Signale Families Placed Successfully");
+                    // Step 5: Commit the transaction group
+                    tg.Assimilate();
                 }
+
+                MessageBox.Show("Signale Families Placed Successfully");
+            }
             catch (Exception ex)
             {
                 MessageBox.Show("Error: " + ex.Message);
             }
+        }
+        public static ICollection<FamilyInstance> GetAllDoorssFromLinkedModels(Document doc)
+        {
+            // Create a list to store floors from all linked models
+            ICollection<FamilyInstance> allLinkedDoors = new List<FamilyInstance>();
+
+            // Get all the linked documents in the current Revit model
+            FilteredElementCollector linkedCollector = new FilteredElementCollector(doc)
+                .OfClass(typeof(RevitLinkInstance));
+
+            foreach (RevitLinkInstance linkInstance in linkedCollector)
+            {
+                // Get the linked document
+                Document linkedDoc = linkInstance.GetLinkDocument();
+
+
+                if (linkedDoc != null)
+                {
+                    // Use a filtered element collector to get all the floors in the linked document
+                    FilteredElementCollector floorCollector = new FilteredElementCollector(linkedDoc).OfCategory(BuiltInCategory.OST_Doors).WhereElementIsNotElementType();
+
+                    foreach (FamilyInstance floor in floorCollector)
+                        // Add the floors from the linked document to the list
+                        allLinkedDoors.Add(floor);
+
+                }
+            }
+
+            return allLinkedDoors;
+            // Now you have all the floors from all linked models in the "allLinkedDoors" list
         }
 
         public string GetName() => "Run Tool";

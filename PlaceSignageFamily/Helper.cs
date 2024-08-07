@@ -27,8 +27,8 @@ namespace PlaceSignageFamily
             /// </summary>
             var addinFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             // Retrieve the family if it is already present:
-            string FamilyName = "Signage Family_WallBased";
-            string FamilyPath = $@"{addinFolder}\Signage Family_WallBased.rfa";
+            string FamilyName = "SignageFamily";
+            string FamilyPath = $@"{addinFolder}\SignageFamily.rfa";
 
             Family family = FindElementByName(
               typeof(Family), FamilyName) as Family;
