@@ -50,8 +50,8 @@ namespace PlaceSignageFamily.External_Event_Handlers
                     using (Transaction tr1 = new Transaction(doc, "Place Families"))
                     {
                         tr1.Start();
-
-                        var symbol = GetFamilySymbole(doc);
+                    
+                        var symbol = GetFamilySymbole(doc, "SignageFamily");
                         symbol.Activate();
                         var Projectdoors = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Doors).WhereElementIsNotElementType().ToElements().Cast<FamilyInstance>();
                         var LinkedDoors = GetAllDoorssFromLinkedModels(doc);
@@ -94,7 +94,9 @@ namespace PlaceSignageFamily.External_Event_Handlers
 
                                 familyInstance = doc.Create.NewFamilyInstance(targetFace.Reference.CreateLinkReference(linkInstance), new XYZ(point.X + offset.X, point.Y + offset.Y, point.Z/*+ (MainviewModel.Height/12)*/), direction.Negate(), symbol); }
 
-                            var familyType = doc.GetElement(familyInstance.GetTypeId());
+
+
+                              var familyType = doc.GetElement(familyInstance.GetTypeId());
                             var levelPar = familyInstance.get_Parameter(BuiltInParameter.INSTANCE_SCHEDULE_ONLY_LEVEL_PARAM);
                             if (levelPar != null)
                                 levelPar.Set(level.Id);
@@ -126,6 +128,30 @@ namespace PlaceSignageFamily.External_Event_Handlers
 
                         }
                         tr1.Commit();
+                    }
+
+
+                    using(Transaction tr2 = new Transaction(doc,"Tag"))
+                    {
+                        tr2.Start();
+
+                        var FloorPlans = new FilteredElementCollector(doc).OfClass(typeof(ViewPlan)).Cast<ViewPlan>().Where(V=>V.ViewType==ViewType.FloorPlan);
+                        foreach (var viewPlan in FloorPlans)
+                        {
+                            var familyInstances = new FilteredElementCollector(doc).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>().Where(F => F.Symbol.FamilyName == "SignageFamily");
+                            var symbolTag = GetFamilySymbole(doc, "SinageFamilyTag");
+                            symbolTag.Activate();
+
+                            foreach (var familyInstance in familyInstances)
+                            {
+                                var location = familyInstance.Location as LocationPoint;
+                                IndependentTag.Create(doc, symbolTag.Id, viewPlan.Id, new Reference(familyInstance), false, TagOrientation.Horizontal, location.Point);
+                            }
+                        }
+
+
+                        tr2.Commit();
+
                     }
 
                     // Step 5: Commit the transaction group

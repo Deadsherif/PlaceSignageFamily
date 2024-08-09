@@ -20,15 +20,15 @@ namespace PlaceSignageFamily
     public class Helper
     {
         public static Document doc { get; set; }
-        public static FamilySymbol GetFamilySymbole(Document doc)
+        public static FamilySymbol GetFamilySymbole(Document doc,string FamilyName)
         {
             /// <summary>
             /// Return complete family file path
             /// </summary>
             var addinFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             // Retrieve the family if it is already present:
-            string FamilyName = "SignageFamily";
-            string FamilyPath = $@"{addinFolder}\SignageFamily.rfa";
+            
+            string FamilyPath = $@"{addinFolder}\{FamilyName}.rfa";
 
             Family family = FindElementByName(
               typeof(Family), FamilyName) as Family;
