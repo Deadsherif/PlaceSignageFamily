@@ -73,6 +73,7 @@ namespace PlaceSignageFamily.External_Event_Handlers
 
                             if (doorHost == null) continue;
                             var room = FromRoom == null ? ToRoom : FromRoom;
+                            if (room == null) continue;
                             var targetFace = GetWallFaceNormalPointingToRoom(door, doorHost, room, FromRoom == null);
                             if (targetFace == null) continue;
 

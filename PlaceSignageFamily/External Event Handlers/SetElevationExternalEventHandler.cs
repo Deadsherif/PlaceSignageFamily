@@ -40,17 +40,7 @@ namespace PlaceSignageFamily.External_Event_Handlers
                     {
                         tr1.Start();
 
-                        var symbol = GetFamilySymbole(doc);
-                        symbol.Activate();
-                        var signages = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_GenericModel).WhereElementIsNotElementType().Cast<FamilyInstance>().Where(x=>x.Symbol.Id==symbol.Id);
-                     
-                        foreach (var signage in signages)
-                        {
-
-                            var elevation = signage.get_Parameter(BuiltInParameter.INSTANCE_ELEVATION_PARAM);
-                             if (elevation != null)
-                                elevation.Set(MainviewModel.Height / 12);
-                        }
+                       
                         tr1.Commit();
                     }
                     
