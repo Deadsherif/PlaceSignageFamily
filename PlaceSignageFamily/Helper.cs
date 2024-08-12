@@ -14,13 +14,17 @@ using System.Reflection;
 using System.IO;
 using Autodesk.Revit.DB.Architecture;
 using System.Diagnostics;
+using System.Xml.Linq;
 
 namespace PlaceSignageFamily
 {
     public class Helper
     {
         public static Document doc { get; set; }
-        public static FamilySymbol GetFamilySymbole(Document doc,string FamilyName)
+
+        // Overload method that accepts FamilySymbol as a parameter
+        
+        public static FamilySymbol GetFamilySymbole(Document doc,string FamilyName, string symbolName)
         {
             /// <summary>
             /// Return complete family file path
@@ -61,11 +65,61 @@ namespace PlaceSignageFamily
             foreach (var symboleId in family.GetFamilySymbolIds())
             {
                 var _symbol = doc.GetElement(symboleId) as FamilySymbol;
-                if (_symbol.Name == "RM7")
+                if (_symbol.Name == symbolName)
                 { symbol = _symbol; break; }
 
             }
             return symbol;
+        }
+    
+        public static List<FamilySymbol> LoadAndGetFamilyTypes(Document doc, string FamilyName)
+        {
+            /// <summary>
+            /// Return complete family file path
+            /// </summary>
+            var addinFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            // Retrieve the family if it is already present:
+
+            string FamilyPath = $@"{addinFolder}\{FamilyName}.rfa";
+
+            Family family = FindElementByName(
+              typeof(Family), FamilyName) as Family;
+
+            if (null == family)
+            {
+                // It is not present, so check for 
+                // the file to load it from:
+
+                if (!File.Exists(FamilyPath))
+                {
+                    TaskDialog.Show("Error", string.Format(
+                      "Please ensure that  "
+                      + "family file '{0}' exists in '{1}'.",
+                      FamilyName, FamilyPath));
+                    return null;
+
+                }
+
+                // Load family from file:
+
+                doc.LoadFamily(FamilyPath, out family);
+
+            }
+
+            // Determine the family symbol
+
+            List<FamilySymbol> symbols = new List<FamilySymbol>();
+
+            foreach (var symboleId in family.GetFamilySymbolIds())
+            {
+                var _symbol = doc.GetElement(symboleId) as FamilySymbol;
+                if (_symbol != null)
+                    symbols.Add(_symbol);
+
+
+
+            }
+            return symbols;
         }
         public static Element FindElementByName(
 
@@ -79,7 +133,7 @@ namespace PlaceSignageFamily
         }
 
 
-        public static Face GetWallFaceNormalPointingToRoom(FamilyInstance door, Wall wall, Room room, bool IsFromRoomNull)
+        public static Face GetWallFaceNormalPointingToRoom(FamilyInstance door, Wall wall, Room room, bool IsFromRoomNull,bool IsLinked)
 
         {
             var doorHeight = door.get_Parameter(BuiltInParameter.INSTANCE_HEAD_HEIGHT_PARAM).AsDouble();
@@ -118,7 +172,7 @@ namespace PlaceSignageFamily
                         // Calculate the normal at that point
                         XYZ faceNormal = face.FaceNormal;
 
-                        var WallId = GetHittedWall(realPointOfRoomToNotGetTheDoor, IsFromRoomNull ? faceNormal: faceNormal.Negate());
+                        var WallId = GetHittedWall(realPointOfRoomToNotGetTheDoor, IsFromRoomNull ? faceNormal: faceNormal.Negate(), IsLinked);
                         if (WallId != null && wall.Id == WallId)
                         {
                             targetFace = face;
@@ -130,8 +184,33 @@ namespace PlaceSignageFamily
 
             return targetFace;
         }
-        
-        public static ElementId GetHittedWall(XYZ point, XYZ faceNormal)
+        public static View3D Create3DView()
+        {
+            View3D view3D;
+            FilteredElementCollector collector = new FilteredElementCollector(doc);
+            Func<View3D, bool> isNotTemplate = v3 => !(v3.IsTemplate) && v3.Name == "Hanger_3D";
+            view3D = collector
+             .OfClass(typeof(View3D))
+             .Cast<View3D>()
+             .FirstOrDefault<View3D>(isNotTemplate);
+
+            if (view3D == null)
+            {
+                //create 3d View 
+                var viewFamilyType = new FilteredElementCollector(doc).OfClass(typeof(ViewFamilyType)).ToElements()
+                   .Cast<ViewFamilyType>().FirstOrDefault(vft => vft.ViewFamily == ViewFamily.ThreeDimensional);
+                view3D = View3D.CreateIsometric(doc, viewFamilyType.Id);
+
+                if (view3D != null)
+                {
+                    view3D.DisplayStyle = DisplayStyle.Shading;
+                    view3D.DetailLevel = ViewDetailLevel.Fine;
+                    view3D.Name = "Signage_3D";
+                }
+            }
+            return view3D;
+        }
+        public static ElementId GetHittedWall(XYZ point, XYZ faceNormal, bool IsLinked)
         {
             ElementFilter filter = new ElementCategoryFilter(BuiltInCategory.OST_Walls);
 
@@ -139,20 +218,29 @@ namespace PlaceSignageFamily
             FilteredElementCollector collector = new
           FilteredElementCollector(doc);
             Func<View3D, bool> isNotTemplate = v3 => !(v3.IsTemplate);
-            View3D view3D = collector.OfClass(typeof(View3D)).Cast<View3D>()
-            .First<View3D>(isNotTemplate);
-
+            View3D view3D = collector.OfClass(typeof(View3D)).Cast<View3D>().FirstOrDefault
+            <View3D>(isNotTemplate);
+            if (view3D == null)
+                view3D = Create3DView();
 
             ReferenceIntersector refIntersector = new ReferenceIntersector(filter, FindReferenceTarget.Face, view3D);
             refIntersector.FindReferencesInRevitLinks = true;
             var referenceWithContext = refIntersector.FindNearest(point, faceNormal);
             if (referenceWithContext != null)
-                return referenceWithContext.GetReference().ElementId;
+            {
+                 var ElementId = IsLinked ? referenceWithContext.GetReference().LinkedElementId: referenceWithContext.GetReference().ElementId;
+                return ElementId;
+            }
+                
             if (referenceWithContext == null)
             {
                 var referenceWithContextFar = refIntersector.Find(point, faceNormal);
                 if (referenceWithContextFar.Count != 0)
-                    return referenceWithContextFar.FirstOrDefault().GetReference().ElementId;
+                {
+                    var ElementId = IsLinked ? referenceWithContextFar.FirstOrDefault().GetReference().LinkedElementId: referenceWithContextFar.FirstOrDefault().GetReference().ElementId;
+                    return ElementId;
+
+                }
             }
 
 
@@ -334,7 +422,18 @@ namespace PlaceSignageFamily
         }
     }
 
+    public class FamilyLoadOption : IFamilyLoadOptions
+    {
+        public bool OnFamilyFound(bool familyInUse, out bool overwriteParameterValues)
+        {
+            throw new NotImplementedException();
+        }
 
+        public bool OnSharedFamilyFound(Family sharedFamily, bool familyInUse, out FamilySource source, out bool overwriteParameterValues)
+        {
+            throw new NotImplementedException();
+        }
+    }
 
 }
 

@@ -40,7 +40,7 @@ namespace PlaceSignageFamily.External_Event_Handlers
 
 
 
-
+                int createdDoorSignageCount = 0;
                 // Step 1: Begin Transaction Group
                 using (TransactionGroup tg = new TransactionGroup(doc, "Place signage families and add paramters"))
                 {
@@ -50,31 +50,32 @@ namespace PlaceSignageFamily.External_Event_Handlers
                     using (Transaction tr1 = new Transaction(doc, "Place Families"))
                     {
                         tr1.Start();
-                    
-                        var symbol = GetFamilySymbole(doc, "SignageFamily");
+
+                        var symbol = GetFamilySymbole(doc, "SignageFamily", MainviewModel.SelectedFamilyType.Name);
                         symbol.Activate();
                         var Projectdoors = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Doors).WhereElementIsNotElementType().ToElements().Cast<FamilyInstance>();
                         var LinkedDoors = GetAllDoorssFromLinkedModels(doc);
                         var doors = new List<FamilyInstance>();
                         doors.AddRange(Projectdoors);
                         doors.AddRange(LinkedDoors);
+                        
                         int i = 1;
                         foreach (var door in doors)
                         {
-                            var comp = door.GetSubComponentIds().Count;
-                            if (comp == 0) continue;
-
+                            var superCom = door.SuperComponent;
+                            if (superCom !=null) continue;
+                            var isLinked = door.Document.IsLinked;
                             var doorLocation = (door.Location as LocationPoint).Point;
                             var FromRoom = door.FromRoom;
                             var ToRoom = door.ToRoom;
-                            var level = doc.GetElement(door.LevelId) as Level;
+                            var level = door.Document.GetElement(door.LevelId) as Level;
                             var doorHost = door.Host as Wall;
-                            var index = (levels.FindIndex(X => X.Id == door.LevelId) + 1) * 100;
+                            var index = (levels.FindIndex(X => X.Id == level.Id) + 1) * 100;
 
                             if (doorHost == null) continue;
                             var room = FromRoom == null ? ToRoom : FromRoom;
                             if (room == null) continue;
-                            var targetFace = GetWallFaceNormalPointingToRoom(door, doorHost, room, FromRoom == null);
+                            var targetFace = GetWallFaceNormalPointingToRoom(door, doorHost, room, FromRoom == null, door.Document.IsLinked);
                             if (targetFace == null) continue;
 
                             (XYZ point, XYZ direction) = DrawWallOpeningTopLeftPoint(doorHost, door, (targetFace as PlanarFace), MainviewModel.IsToggleLeft);
@@ -87,17 +88,20 @@ namespace PlaceSignageFamily.External_Event_Handlers
                             if (!door.Document.IsLinked)
                                 familyInstance = doc.Create.NewFamilyInstance(targetFace, new XYZ(point.X + offset.X, point.Y + offset.Y, point.Z/*+ (MainviewModel.Height/12)*/), direction.Negate(), symbol);
                             else
-
                             {
                                 // Get all the linked documents in the current Revit model
                                 var linkInstance = new FilteredElementCollector(doc)
-                                    .OfClass(typeof(RevitLinkInstance)).Cast<RevitLinkInstance>().FirstOrDefault(In=>In.GetLinkDocument().Title== door.Document.Title);
+                                    .OfClass(typeof(RevitLinkInstance)).Cast<RevitLinkInstance>().FirstOrDefault(In => In.GetLinkDocument().Title == door.Document.Title);
 
-                                familyInstance = doc.Create.NewFamilyInstance(targetFace.Reference.CreateLinkReference(linkInstance), new XYZ(point.X + offset.X, point.Y + offset.Y, point.Z/*+ (MainviewModel.Height/12)*/), direction.Negate(), symbol); }
+                                familyInstance = doc.Create.NewFamilyInstance(targetFace.Reference.CreateLinkReference(linkInstance), new XYZ(point.X + offset.X, point.Y + offset.Y, point.Z/*+ (MainviewModel.Height/12)*/), direction.Negate(), symbol);
+                            }
+                            if (familyInstance == null)
+                                continue;
+                            else
+                                createdDoorSignageCount++;
 
 
-
-                              var familyType = doc.GetElement(familyInstance.GetTypeId());
+                            var familyType = doc.GetElement(familyInstance.GetTypeId());
                             var levelPar = familyInstance.get_Parameter(BuiltInParameter.INSTANCE_SCHEDULE_ONLY_LEVEL_PARAM);
                             if (levelPar != null)
                                 levelPar.Set(level.Id);
@@ -132,15 +136,15 @@ namespace PlaceSignageFamily.External_Event_Handlers
                     }
 
 
-                    using(Transaction tr2 = new Transaction(doc,"Tag"))
+                    using (Transaction tr2 = new Transaction(doc, "Tag"))
                     {
                         tr2.Start();
 
-                        var FloorPlans = new FilteredElementCollector(doc).OfClass(typeof(ViewPlan)).Cast<ViewPlan>().Where(V=>V.ViewType==ViewType.FloorPlan);
+                        var FloorPlans = new FilteredElementCollector(doc).OfClass(typeof(ViewPlan)).Cast<ViewPlan>().Where(V => V.ViewType == ViewType.FloorPlan);
                         foreach (var viewPlan in FloorPlans)
                         {
                             var familyInstances = new FilteredElementCollector(doc).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>().Where(F => F.Symbol.FamilyName == "SignageFamily");
-                            var symbolTag = GetFamilySymbole(doc, "SinageFamilyTag");
+                            var symbolTag = GetFamilySymbole(doc, "SinageFamilyTag","RM7");
                             symbolTag.Activate();
 
                             foreach (var familyInstance in familyInstances)
@@ -159,11 +163,13 @@ namespace PlaceSignageFamily.External_Event_Handlers
                     tg.Assimilate();
                 }
 
-                MessageBox.Show("Signale Families Placed Successfully");
+                MessageBox.Show($"{createdDoorSignageCount} Signage Families Created");
+                Mainview.ExportBtn.IsEnabled = true;
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Error: " + ex.Message);
+                Mainview.ExportBtn.IsEnabled = true;
             }
         }
         public static ICollection<FamilyInstance> GetAllDoorssFromLinkedModels(Document doc)

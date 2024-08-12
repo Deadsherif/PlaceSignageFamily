@@ -64,7 +64,9 @@ namespace PlaceSignageFamily.MVVM.View
         }
         protected override void OnClosed(EventArgs e) => IsClosed = true;
 
-       
-
+        private void ExportBtn_Click(object sender, RoutedEventArgs e)
+        {
+            ExportBtn.IsEnabled = false;
+        }
     }
 }

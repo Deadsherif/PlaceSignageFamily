@@ -10,6 +10,8 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Controls;
+using static PlaceSignageFamily.Helper;
 
 namespace PlaceSignageFamily
 {
@@ -23,12 +25,15 @@ namespace PlaceSignageFamily
             var ev = ExternalEvent.Create(placePlaceSignageFamilyExternalEventHandler);
             var evElevation = ExternalEvent.Create(setElevationExternalEventHandler);
 
-
-            Helper.doc = commandData.Application.ActiveUIDocument.Document;
-
-            MainWindowViewModel viewModel = new MainWindowViewModel();
-            var ui = MainWindow.CreateInstance(viewModel); 
-
+            var document = commandData.Application.ActiveUIDocument.Document;
+            Helper.doc = document;
+            Transaction tr = new Transaction(document, "LoadFamily");
+            tr.Start();
+            var symbols = LoadAndGetFamilyTypes(document, "SignageFamily");
+            tr.Commit();
+            MainWindowViewModel viewModel = new MainWindowViewModel(symbols);
+            var ui = MainWindow.CreateInstance(viewModel);
+            //viewModel.FamilyTypes = new ObservableCollection<FamilySymbol>(symbols);
             placePlaceSignageFamilyExternalEventHandler.MainviewModel = viewModel;
             setElevationExternalEventHandler.MainviewModel = viewModel;
             viewModel.Ev = ev;

@@ -24,6 +24,7 @@
             <RowDefinition Height=".1*"/>
             <RowDefinition Height=".1*"/>
             <RowDefinition Height=".1*"/>
+            <RowDefinition Height=".1*"/>
         </Grid.RowDefinitions>
 
         <!--<StackPanel Orientation="Horizontal">
@@ -59,8 +60,12 @@
 
 
         </Grid>
+        <StackPanel Grid.Row="2" VerticalAlignment="Center" Orientation="Horizontal">
+            <TextBlock Text="Family Type"  VerticalAlignment="Center" />
+            <ComboBox Width="200" Margin="50,00,0,0" ItemsSource="{Binding FamilyTypes}" DisplayMemberPath="Name" SelectedItem="{Binding SelectedFamilyType}"></ComboBox>
+        </StackPanel>
         <StackPanel Grid.Row="4" Grid.Column="2" Orientation="Horizontal" Margin="5" HorizontalAlignment="Right" VerticalAlignment="Bottom">
-            <Button Name="ExportBtn" Content="RUN" Width="90" Command="{Binding PlaceSignageFamilyCommand}"></Button>
+            <Button Name="ExportBtn" Content="RUN" Width="90" Command="{Binding PlaceSignageFamilyCommand}" Click="ExportBtn_Click"></Button>
             <Button x:Name="CloseBtn" Content="CLOSE" Width="90" Margin="5,0,0,0" Click="CloseBtn_Click"></Button>
         </StackPanel>
     </Grid>

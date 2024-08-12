@@ -34,6 +34,24 @@ namespace PlaceSignageFamily.MVVM.ViewModel
         #endregion
         #region Properties
 
+
+        private ObservableCollection<FamilySymbol> familyTypes;
+
+        public ObservableCollection<FamilySymbol> FamilyTypes
+        {
+            get { return familyTypes; }
+            set { familyTypes = value; }
+        }
+
+        private FamilySymbol selectedFamilyType;
+
+        public FamilySymbol SelectedFamilyType
+        {
+            get { return selectedFamilyType; }
+            set { selectedFamilyType = value; }
+        }
+
+
         private double height;
         private double offset;
         private bool _isToggleLeft;
@@ -118,8 +136,10 @@ namespace PlaceSignageFamily.MVVM.ViewModel
         public ICommand DeselectAllCommand { get; set; }
         public ExternalEvent EvElevation { get; internal set; }
 
-        public MainWindowViewModel()
+        public MainWindowViewModel(List<FamilySymbol> symbols)
         {
+            FamilyTypes = new ObservableCollection<FamilySymbol>(symbols);
+            SelectedFamilyType = FamilyTypes.FirstOrDefault();
             PlaceSignageFamilyCommand = new RelayCommand(P => RunExporter(P));
             SetFamilyElevationCommand = new RelayCommand(P => SetElevation(P));
 
