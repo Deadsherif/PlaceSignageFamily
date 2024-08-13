@@ -53,17 +53,19 @@ namespace PlaceSignageFamily.External_Event_Handlers
 
                         var symbol = GetFamilySymbole(doc, "SignageFamily", MainviewModel.SelectedFamilyType.Name);
                         symbol.Activate();
+
+                        var allFamilyInstances = new FilteredElementCollector(doc).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>().Where(F => F.Symbol.FamilyName == "SignageFamily");
                         var Projectdoors = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Doors).WhereElementIsNotElementType().ToElements().Cast<FamilyInstance>();
                         var LinkedDoors = GetAllDoorssFromLinkedModels(doc);
                         var doors = new List<FamilyInstance>();
                         doors.AddRange(Projectdoors);
                         doors.AddRange(LinkedDoors);
-                        
+
                         int i = 1;
                         foreach (var door in doors)
                         {
                             var superCom = door.SuperComponent;
-                            if (superCom !=null) continue;
+                            if (superCom != null) continue;
                             var isLinked = door.Document.IsLinked;
                             var doorLocation = (door.Location as LocationPoint).Point;
                             var FromRoom = door.FromRoom;
@@ -86,14 +88,23 @@ namespace PlaceSignageFamily.External_Event_Handlers
                             point = point ?? doorLocation;
                             FamilyInstance familyInstance = null;
                             if (!door.Document.IsLinked)
-                                familyInstance = doc.Create.NewFamilyInstance(targetFace, new XYZ(point.X + offset.X, point.Y + offset.Y, point.Z/*+ (MainviewModel.Height/12)*/), direction.Negate(), symbol);
+                            {
+                                var location = new XYZ(point.X + offset.X, point.Y + offset.Y, point.Z);
+                                 var test =    allFamilyInstances.Select(F => (F.Location as LocationPoint).Point).ToList();
+                                if (allFamilyInstances.Any(F => (F.Location as LocationPoint).Point.DistanceTo(location)< 0.5)) continue;
+
+                                familyInstance = doc.Create.NewFamilyInstance(targetFace, location, direction.Negate(), symbol);
+
+                            }
                             else
                             {
                                 // Get all the linked documents in the current Revit model
                                 var linkInstance = new FilteredElementCollector(doc)
                                     .OfClass(typeof(RevitLinkInstance)).Cast<RevitLinkInstance>().FirstOrDefault(In => In.GetLinkDocument().Title == door.Document.Title);
 
-                                familyInstance = doc.Create.NewFamilyInstance(targetFace.Reference.CreateLinkReference(linkInstance), new XYZ(point.X + offset.X, point.Y + offset.Y, point.Z/*+ (MainviewModel.Height/12)*/), direction.Negate(), symbol);
+                                var location = new XYZ(point.X + offset.X, point.Y + offset.Y, point.Z/*+ (MainviewModel.Height/12)*/);
+                                if (allFamilyInstances.Any(F => (F.Location as LocationPoint).Point.DistanceTo(location)< 0.5)) continue;
+                                familyInstance = doc.Create.NewFamilyInstance(targetFace.Reference.CreateLinkReference(linkInstance), location, direction.Negate(), symbol);
                             }
                             if (familyInstance == null)
                                 continue;
@@ -141,15 +152,22 @@ namespace PlaceSignageFamily.External_Event_Handlers
                         tr2.Start();
 
                         var FloorPlans = new FilteredElementCollector(doc).OfClass(typeof(ViewPlan)).Cast<ViewPlan>().Where(V => V.ViewType == ViewType.FloorPlan);
+                        var familyInstances = new FilteredElementCollector(doc).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>().Where(F => F.Symbol.FamilyName == "SignageFamily");
+                        var symbolTag = GetFamilySymbole(doc, "SinageFamilyTag", "RM7");
+                        symbolTag.Activate();
+
+                        var allTagInstances = new FilteredElementCollector(doc).OfClass(typeof(IndependentTag)).Cast<IndependentTag>().Where(F =>  F.GetTypeId().IntegerValue == symbolTag.Id.IntegerValue);
+                        
+
                         foreach (var viewPlan in FloorPlans)
                         {
-                            var familyInstances = new FilteredElementCollector(doc).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>().Where(F => F.Symbol.FamilyName == "SignageFamily");
-                            var symbolTag = GetFamilySymbole(doc, "SinageFamilyTag","RM7");
-                            symbolTag.Activate();
 
                             foreach (var familyInstance in familyInstances)
                             {
                                 var location = familyInstance.Location as LocationPoint;
+
+                                if  (allTagInstances.Any(F=> F.TagHeadPosition.DistanceTo(location.Point) < 0.5)) continue;
+
                                 IndependentTag.Create(doc, symbolTag.Id, viewPlan.Id, new Reference(familyInstance), false, TagOrientation.Horizontal, location.Point);
                             }
                         }
@@ -162,8 +180,11 @@ namespace PlaceSignageFamily.External_Event_Handlers
                     // Step 5: Commit the transaction group
                     tg.Assimilate();
                 }
-
-                MessageBox.Show($"{createdDoorSignageCount} Signage Families Created");
+                var isPlural = createdDoorSignageCount > 1 ;
+                var familyPlural = isPlural ? "ies" : "y";
+                var havePlural = isPlural ? "have" : "has";
+                var countSTR = createdDoorSignageCount > 0 ? $"{createdDoorSignageCount}" : "No";
+                MessageBox.Show($"{countSTR} New Signage Famil{familyPlural} {havePlural} been created");
                 Mainview.ExportBtn.IsEnabled = true;
             }
             catch (Exception ex)
