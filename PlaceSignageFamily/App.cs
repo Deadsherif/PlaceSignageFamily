@@ -17,13 +17,24 @@ using System.Globalization;
 
 namespace PlaceSignageFamily
 {
-    internal class App : IExternalApplication
+    public class App : IExternalApplication
     {
+        private string tabName;
+
+        public App()
+        {
+
+        }
+
+        public App(string tabName)
+        {
+            this.tabName = tabName;
+        }
         public Result OnStartup(UIControlledApplication a)
         {
-           
+
             //Panel
-            RibbonPanel panel = ribbonpanel(a);
+            RibbonPanel panel = ribbonpanel(a, tabName);
 
             // resolve missing dlls
             AppDomain.CurrentDomain.AssemblyResolve += new ResolveEventHandler(AssemblyResolve);
@@ -74,9 +85,8 @@ namespace PlaceSignageFamily
         {
 
         }
-        public RibbonPanel ribbonpanel(UIControlledApplication a)
+        public RibbonPanel ribbonpanel(UIControlledApplication a, string tab)
         {
-            string tab = "Place Signage";
             RibbonPanel ribbonpanel = null;
             //create tab
             try
